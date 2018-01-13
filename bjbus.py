@@ -1,5 +1,4 @@
 '''本插件的编写参考了 hachina 的开发教程。'''
-
 import json
 from urllib import request, parse
 import logging
@@ -21,10 +20,10 @@ _LOGGER = logging.getLogger(__name__)
 
 TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
-# 配置文件中三个配置项的名称
 CONF_OPTIONS = "options"
 CONF_LINE = "line"
 CONF_DIR = "direction"
+CONF_BOARD = "board"
 
 OPTIONS = {
     "station": ["bjbus_station", "剩余站数", "mdi:bus-side", "站"],
@@ -39,21 +38,19 @@ ATTRIBUTION = ""
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_LINE): cv.string,
     vol.Required(CONF_DIR): cv.string,
-    # 配置项的options是一个列表，列表内容只能是OPTIONS中定义的三个可选项
     vol.Required(CONF_OPTIONS, default=[]): vol.All(cv.ensure_list, [vol.In(OPTIONS)]),
 })
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
-    """根据配置文件，setup_platform函数会自动被系统调用."""
     _LOGGER.info("setup platform sensor.bjbus...")
 
     line = config.get(CONF_LINE)
     direction = config.get(CONF_DIR)
+    board = config.get(CONF_BOARD)
 
-    data = busData(hass, line, direction)
+    data = busData(hass, line, direction, board)
 
-    # 添加若干个设备
     dev = []
     for option in config[CONF_OPTIONS]:
         dev.append(bjbus(data, option))
@@ -61,10 +58,8 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 
 
 class bjbus(Entity):
-    """定义一个温度传感器的类，继承自HomeAssistant的Entity类."""
 
     def __init__(self, data, option):
-        """初始化."""
         self._data = data
         self._object_id = OPTIONS[option][0]
         self._friendly_name = OPTIONS[option][1]
@@ -101,9 +96,6 @@ class bjbus(Entity):
             }
 
     def update(self):
-        """更新函数，在sensor组件下系统会定时自动调用（时间间隔在配置文件中可以调整，缺省为30秒）."""
-        # update只是从busData中获得数据，数据由busData维护。
-#        self._updatetime = self._data.updatetime
 
         if self._type == "station":
             self._state = self._data.station
@@ -115,22 +107,20 @@ class bjbus(Entity):
 
 class busData(object):
 
-    def __init__(self, hass, line, direction):
+    def __init__(self, hass, line, direction, board):
         """初始化函数."""
-        #self._url = "http://www.bjbus.com/home/ajax_rtbus_data.php"
+
         self._line = line
         self._direction = direction
-        #self._params = {"selBLine": line,
-                        #"selBDir": direction,
-                        #"selBStop": 6,
-                        #"act": "busTime"}
+        self._board = board
+
         self._station = None
         self._distance = None
         self._bustime = None
         self._updatetime = None
 
         self.update(dt_util.now())
-        # 每隔TIME_BETWEEN_UPDATES，调用一次update(),从京东万象获取数据
+
         track_time_interval(hass, self.update, TIME_BETWEEN_UPDATES)
 
     @property
@@ -145,42 +135,23 @@ class busData(object):
     def bustime(self):
         return self._bustime
 
-    #@property
-    #def updatetime(self):
-        #"""更新时间."""
-        #return self._updatetime
-
     def update(self, now):
+        """从远程更新信息."""
         _LOGGER.info("Update from bjbus...")
 
-        # 通过HTTP访问，获取需要的信息
-        url = 'http://www.bjbus.com/home/ajax_rtbus_data.php?act=busTime&selBLine=' + str(self._line) + '&selBDir=' + str(self._direction) + '&selBStop=' + '6'
+        url = 'http://www.bjbus.com/home/ajax_rtbus_data.php?act=busTime&selBLine=' + str(self._line) + '&selBDir=' + str(self._direction) + '&selBStop=' + str(self._board)
         infomation_file = request.urlopen(url)
         hjson = json.loads(infomation_file.read().decode('utf-8'))
 
         if hjson is None:
             _LOGGER.error("Request api Error")
             return
-        
-        #elif result["code"] != "10000":
-            #_LOGGER.error("Error API return, code=%s, msg=%s",
-                          #result["code"],
-                          #result["msg"])
-            #return
+
         soup = BeautifulSoup(hjson['html'],'html.parser')
         if ((soup.span.next_sibling).find("公里") == -1):
-            unit = (" 米")
+            unit = (" m")
         else:
-            unit = (" 千米")
-            
-        # 根据http返回的结果，更新数据
-        #all_result = result["result"]["HeWeather5"][0]
-        #self._station = all_result["now"]["tmp"]
-        #self._distance = all_result["now"]["hum"]
-        #self._bustime = all_result["aqi"]["line"]["bustime"]
-        #self._updatetime = all_result["basic"]["update"]["loc"]
-        
-#        result2 = result['html']
+            unit = (" km")
 
         zhan = soup.p.next_sibling.next
         zhan = re.sub("\D", "", zhan)         
