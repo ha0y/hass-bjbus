@@ -1,0 +1,10 @@
+{
+  "domain": "bjbus",
+  "name": "北京公交",
+  "config_flow": true,
+  "documentation": "https://github.com/ha0y/hass-bjbus",
+  "requirements": [],
+  "codeowners": [
+    "@ha0y"
+  ]
+}

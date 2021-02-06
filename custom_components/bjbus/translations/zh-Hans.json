@@ -1,0 +1,21 @@
+{
+    "config": {
+        "abort": {
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "title": "线路搜索"
+                },
+                "title": "线路搜索",
+                "description": "请输入完整路号或开头"
+            },
+            "search_line":{
+                "title": "请选择线路及方向"
+            },
+            "station":{
+                "title": "请选择上车站"
+            }
+        }
+    }
+}
