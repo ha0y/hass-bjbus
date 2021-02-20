@@ -80,7 +80,7 @@ class BjbusSensor(CoordinatorEntity):
         """Return the state of the device."""
         # return self._state
         if d := self._coordinator.data:
-            return d[0][self._type[4]]
+            return d[-1][self._type[4]]
         else:
             return None
 
